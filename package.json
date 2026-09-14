@@ -1,0 +1,34 @@
+{
+  "name": "aaclock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "反走样时钟：同一个钟面，三种采样策略，逐像素看得见的差别",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:minify": "tsc --noEmit && vite build --mode minify",
+    "build:standalone": "tsc --noEmit && vite build --mode standalone",
+    "build:standalone:minify": "tsc --noEmit && vite build --mode standalone-minify",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "anti-aliasing",
+    "sdf",
+    "webgl",
+    "clock"
+  ],
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.24.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@11.24.0",
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  }
+}
