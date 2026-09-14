@@ -1,0 +1,549 @@
+/*
+ * AAClock 外观：颜色一律消费 Hana 主题 token（--bg / --bg-card / --text / --accent /
+ * --border / --bg-glass / --shadow / --overlay-* …），它们定义在 src/themes/ 的逐字副本里。
+ * 这里只放与主题无关的自有 token：字体、圆角、几何比例。
+ */
+
+html {
+  /* 原生控件与滚动条的明暗；controller 会按底色亮度改写具体值。 */
+  color-scheme: light dark;
+}
+
+:root {
+  --font-ui: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC',
+    sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+
+  /* 圆角乘上主题给出的几何比例（continuous-corners.css 的 --corner-radius-scale）。 */
+  --radius-lg: calc(16px * var(--corner-radius-scale, 1));
+  --radius-md: calc(9px * var(--corner-radius-scale, 1));
+  --radius-sm: calc(6px * var(--corner-radius-scale, 1));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 骨架 ─────────────────────────────────────────────── */
+
+.app {
+  display: grid;
+  /* 顶栏不占行：它浮在表盘区之上，小窗口里就不跟表盘抢高度了。 */
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 100%;
+  position: relative;
+}
+
+.bar {
+  /* 浮层：表盘四周本来有投影的余地（DIAL.fit），顶栏压在那圈余地上不会盖住盘面。 */
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 26px 14px;
+  /* 浮层别在表盘上方吃掉指针事件。 */
+  pointer-events: none;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.tag {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  white-space: nowrap;
+}
+
+.clock {
+  font-size: 19px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+
+.stat {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ── 表盘 ─────────────────────────────────────────────── */
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+  padding: 0 26px;
+}
+
+.dial {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  /* 尺寸交给可用空间：上界交给设备像素那头（见 main.ts 的 MAX_SIDE）。 */
+  width: min(100%, 72vh);
+}
+
+.dial canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dial canvas.overlay {
+  pointer-events: none;
+}
+
+.loupe {
+  /* 挂在表盘右边缘之外：绝对定位不参与布局，表盘因此严格居中。 */
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 22px;
+  width: 168px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  corner-shape: squircle;
+  background: var(--bg-glass);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 10px 30px -14px var(--shadow);
+  opacity: 1;
+  transition: opacity 0.18s ease;
+}
+
+.loupe[hidden] {
+  display: none;
+}
+
+/* 右侧放不下时收回表盘内叠放：“没位置就挤”的那一档，条件由 main 实测。 */
+.dial.loupe-overlay .loupe {
+  left: auto;
+  right: 12px;
+  top: auto;
+  bottom: 12px;
+  transform: none;
+  margin-left: 0;
+  width: 132px;
+}
+
+.dial.loupe-overlay .loupe canvas {
+  width: 116px;
+  height: 116px;
+}
+
+.dial.loupe-overlay .loupe-meta {
+  font-size: 8.5px;
+}
+
+.loupe canvas {
+  position: static;
+  width: 152px;
+  height: 152px;
+  display: block;
+  border-radius: 5px;
+  corner-shape: squircle;
+  background: var(--overlay-subtle);
+  image-rendering: pixelated;
+}
+
+.loupe-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  /* 坐标位数一变多就会把 Npx 挤到下一行，这里锁死不换行。 */
+  white-space: nowrap;
+}
+
+.hint {
+  /* 它是控制台的说明，不是表盘的注解：与收起按钮同行，面板收起时它留在页面底部。 */
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.hint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  margin: 0 1px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-light);
+  background: var(--overlay-subtle);
+}
+
+/* ── 控制台 ───────────────────────────────────────────── */
+
+/* 底部块：提示行在上，面板在下。按内容收窄，因而提示行的右端与面板右缘对齐。 */
+.bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 26px 20px;
+}
+
+/* 提示与收起按钮同行；左侧用等宽占位（按钮宽 + 内缩量）保证提示仍在整体居中。 */
+.hint-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  /* 按钮右缘内缩一个圆角的量：让它落在面板圆角的视觉范围内，而不是齐着直边。 */
+  padding-right: var(--radius-lg);
+}
+
+.hint-row::before {
+  content: '';
+  flex: 0 0 auto;
+  width: calc(26px + var(--radius-lg));
+}
+
+.console {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 26px;
+  /* 按实际内容收窄；居中与底部留白交给外层 .bottom。 */
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: squircle;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 12px 34px -22px var(--shadow);
+}
+
+/* 收起与展开各用一枚折角图标，尺寸一致。 */
+.console-collapse,
+.expand-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+}
+
+/* 图标自己给尺寸：只靠属性里的宽高，在 flex 里会被压成 0。 */
+.console-collapse svg,
+.expand-handle svg {
+  display: block;
+  flex: none;
+  width: 10px;
+  height: 6px;
+}
+
+/* 收起参数面板：那一行整块让给表盘。 */
+.console[hidden] {
+  display: none;
+}
+
+.app.console-collapsed .dial {
+  width: min(100%, 86vh);
+}
+
+/* 收起后靠右下角这个浮标把面板叫回来；横坐标与收起前的把手一致。 */
+.expand-handle {
+  position: fixed;
+  right: var(--handle-right, 14px);
+  bottom: 14px;
+  z-index: 5;
+  box-shadow: 0 6px 18px -10px var(--shadow);
+}
+
+/* 作者样式里的 display 会盖掉浏览器对 [hidden] 的处理，得自己关。 */
+.console-collapse[hidden],
+.expand-handle[hidden] {
+  display: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.group.is-muted {
+  opacity: 0.42;
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.label b {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-light);
+  text-transform: none;
+}
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  corner-shape: squircle;
+  background: var(--overlay-subtle);
+}
+
+.seg button,
+.chip {
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-light);
+  background: transparent;
+  border: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.seg button {
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
+  corner-shape: squircle;
+  white-space: nowrap;
+}
+
+.seg button:hover {
+  color: var(--text);
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--bg-card);
+  color: var(--text);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--overlay-subtle);
+}
+
+.chip:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.chip[aria-pressed='true'] {
+  /* Hana 的“浅底深字”式选中态：不押注 accent 本身的明暗，任何主题都读得清。 */
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 132px;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-card);
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+input[type='range']:disabled::-webkit-slider-thumb {
+  background: var(--text-muted);
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 132px;
+  padding: 6px 26px 6px 9px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  corner-shape: squircle;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238A9490' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+
+select option {
+  color: var(--text);
+  background: var(--bg-card);
+}
+
+/* ── 失败兜底 ─────────────────────────────────────────── */
+
+.fatal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 40px;
+  text-align: center;
+  background: var(--bg);
+}
+
+.fatal[hidden] {
+  display: none;
+}
+
+.fatal h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.fatal p {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 13px;
+  color: var(--text-light);
+  white-space: pre-wrap;
+}
+
+/* 追加（README §8：新增样式只能追加到末尾，不改既有选择器语义）。 */
+
+@media (pointer: fine) {
+  .dial {
+    cursor: grab;
+  }
+}
+
+.dial.is-dragging {
+  cursor: grabbing;
+}
+
+/* 放大镜开着时藏光标：指针本身会挡住取样框，看不见对准了哪一格。 */
+.dial.cursor-hidden {
+  cursor: none;
+}
+
+/* 按住拖动时例外：那时候要看得见抓手，才知道自己正在拨时间。 */
+.dial.cursor-hidden.is-dragging {
+  cursor: grabbing;
+}
+
+@media (max-width: 760px) {
+  .bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 16px 18px 10px;
+  }
+
+  .stage {
+    padding: 0 18px;
+  }
+
+  .bottom {
+    gap: 12px;
+    padding: 0 12px 16px;
+  }
+
+  .console {
+    max-width: 100%;
+    gap: 12px 18px;
+  }
+
+  .dial {
+    width: min(100%, 56vh);
+  }
+
+  .loupe-meta {
+    font-size: 8.5px;
+  }
+}
