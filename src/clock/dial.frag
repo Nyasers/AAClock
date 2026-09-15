@@ -1,64 +1,17 @@
-/*
- * shader.ts —— GLSL ES 3.00 源码。
- *
- * 坐标约定（README §3.1）：p = (gl_FragCoord.xy - 0.5*uRes) / (0.5*min(uRes.x,uRes.y))，
- * 原点在钟面中心，半径 1.0 即短边的一半。角度 a 从 12 点起算、顺时针为正，
- * 方向向量 vec2(sin(a), cos(a))。
- *
- * 覆盖合成铁律（README §3.3）：每一次图层叠加都写成 over(dst, src, coverage)，
- * 覆盖率即 alpha。全文件没有一处 if (d < 0.0) 直接切色——那会绕过反走样，
- * 正是这份实现要演示的反面。
- */
-
-export const VERTEX_SHADER = /* glsl */ `#version 300 es
-precision highp float;
-
-// 无属性：用 gl_VertexID 拼一个盖住整个裁剪空间的大三角形（配空 VAO）。
-void main() {
-  vec2 v = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
-  gl_Position = vec4(v * 2.0 - 1.0, 0.0, 1.0);
-}
-`;
-
-/**
- * 表盘几何（盘面空间，半径 1.0 = 画布短边一半）。
- * 着色器与 JS 的掽针命中测试共用这一份，避免两处各写一套长度。
- */
-export const DIAL = {
-  /** 整盘在画布内再收一圈：不收的话底部投影会被方框边缘切出一条硬边。 */
-  fit: 0.84,
-  rFace: 0.862,
-  rBezel: 0.836,
-  /** 刻度外端：两档共用。 */
-  rTickOut: 0.786,
-  /** 刻度里端半径：越小线越长。整点最长，分针位最短。 */
-  rTickMinute: 0.742,
-  rTickHour: 0.7,
-  lHour: 0.404,
-  lMin: 0.618,
-  lSec: 0.706,
-  tSec: 0.148,
-  /** 刻度角宽（弧度）：越长越粗。 */
-  wTickMinute: 0.0026,
-  wTickHour: 0.0052,
-  nMinute: 60,
-  nHour: 12,
-} as const;
-
-export const FRAGMENT_SHADER = /* glsl */ `#version 300 es
+#version 300 es
 precision highp float;
 precision highp int;
 
 // ── uniform 清单（README §3.7）─────────────────────────────
-uniform vec2  uRes;      // 设备像素尺寸
-uniform float uPx;       // 一个设备像素在画布空间里的长度 = 2 / min(uRes.x, uRes.y)
-uniform float uPxDial;   // 一个设备像素在盘面空间里的长度 = uPx / FIT
-uniform vec3  uAng;      // 时 / 分 / 秒角度（弧度）
-uniform int   uMode;     // 0 = 超采样（n×n 硬采样平均），1 = 解析覆盖
-uniform int   uSamples;  // 超采样每轴样本数（1–9；1 即 1 点/像素）
-uniform int   uField;    // 覆盖场开关
-uniform int   uLinear;   // 混合空间（0 = sRGB 直混，1 = 线性光）
-uniform float uGlow;     // 秒针晕影强度
+uniform vec2  uRes;         // 设备像素尺寸
+uniform float uPx;          // 一个设备像素在画布空间里的长度 = 2 / min(uRes.x, uRes.y)
+uniform float uPxDial;      // 一个设备像素在盘面空间里的长度 = uPx / FIT
+uniform vec3  uAng;         // 时 / 分 / 秒角度（弧度）
+uniform int   uMode;        // 0 = 超采样（n×n 硬采样平均），1 = 解析覆盖
+uniform int   uSamples;     // 超采样每轴样本数（1–9；1 即 1 点/像素）
+uniform int   uField;       // 覆盖场开关
+uniform int   uLinear;      // 混合空间（0 = sRGB 直混，1 = 线性光）
+uniform float uGlow;        // 秒针晕影强度
 uniform float uShadowAlpha; // 投影强度：--shadow 的 alpha（浅色主题 0.04~0.11，暗色 0.3+）。
 uniform vec3  uBg;
 uniform vec3  uCard;
@@ -73,22 +26,24 @@ uniform vec3  uShadow;
 out vec4 fragColor;
 
 // ── 几何常量（README §3.4）────────────────────────────────
-const float R_FACE       = ${DIAL.rFace};
-const float R_BEZEL      = ${DIAL.rBezel};
-const float R_TICKOUT    = ${DIAL.rTickOut};
-// 刻度两档的里端半径：越小线越长；两档外端都落在 R_TICKOUT。
-const float R_TICKMINUTE = ${DIAL.rTickMinute};
-const float R_TICKHOUR   = ${DIAL.rTickHour};
-const float L_HOUR       = ${DIAL.lHour};
-const float L_MIN        = ${DIAL.lMin};
-const float L_SEC        = ${DIAL.lSec};
-const float T_SEC        = ${DIAL.tSec};
-const float W_TICKMINUTE = ${DIAL.wTickMinute};
-const float W_TICKHOUR   = ${DIAL.wTickHour};
-const float N_MINUTE     = ${DIAL.nMinute}.0;
-const float N_HOUR       = ${DIAL.nHour}.0;
+const float R_FACE       = 0.862;
+const float R_BEZEL      = 0.836;
+// 刻度外端：两档共用。
+const float R_TICKOUT    = 0.786;
+// 刻度里端半径：越小线越长。整点最长，分针位最短。
+const float R_TICKMINUTE = 0.742;
+const float R_TICKHOUR   = 0.7;
+const float L_HOUR       = 0.404;
+const float L_MIN        = 0.618;
+const float L_SEC        = 0.706;
+const float T_SEC        = 0.148;
+// 刻度角宽（弧度）：越长越粗。
+const float W_TICKMINUTE = 0.0026;
+const float W_TICKHOUR   = 0.0052;
+const float N_MINUTE     = 60.0;
+const float N_HOUR       = 12.0;
 // 盘面在画布内的缩放（DIAL.fit）：着色器整体收一圈，投影才有余地。
-const float FIT       = ${DIAL.fit};
+const float FIT       = 0.84;
 const float TAU       = 6.283185307179586;
 const float GAMMA     = 2.2;
 
@@ -312,4 +267,3 @@ void main() {
   if (uLinear == 1) col = pow(max(col, 0.0), vec3(1.0 / GAMMA));
   fragColor = vec4(col, 1.0);
 }
-`;
