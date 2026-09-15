@@ -209,7 +209,7 @@ vec3  uBg, uCard, uEdge, uInk, uInkSoft, uMuted, uAccent, uCoral, uShadow
 E:/Hanako/.hanako/artifacts/renderer/<version>/themes/
 ```
 
-拷入除 `new-warm-paper-fonts.css`（那是字体，不是配色）外的全部文件：`continuous-corners.css`、`grass-aroma.css`、`midnight.css`、`midnight-contrast.css`、`warm-paper.css`、`new-warm-paper.css`、`absolutely.css`、`contemplation.css`、`coral.css`、`deep-think.css`、`delve.css`、`high-contrast.css`。**内容不得改动**；宿主改了色，重拷一次即同步。
+拷入除 `new-warm-paper-fonts.css`（那是字体，不是配色）外的全部文件：`continuous-corners.css`、`grass-aroma.css`、`midnight.css`、`midnight-contrast.css`、`warm-paper.css`、`new-warm-paper.css`、`absolutely.css`、`contemplation.css`、`coral.css`、`deep-think.css`、`delve.css`、`high-contrast.css`。**源文件内容不得改动**；宿主改了色，重拷一次即同步。压缩模式下会把这个副本里页面不消费的变量与关键帧裁掉（§7.2），裁的是产物，不是副本。
 
 `themes/index.ts` 以副作用装入全部主题 CSS，并从文件名导出主题 id 列表——id 不写死在 TS 里，拷进来一个文件就多一个选项。
 
@@ -263,6 +263,14 @@ E:/Hanako/.hanako/artifacts/renderer/<version>/themes/
 ### 7.2 构建
 
 命令见文首。两种构建都落在 `dist`，每次都清空重建：产物永远是刚构建出来的那一份。模式之间的差别只有"是否内联"，压缩与否两种模式一致（见 §2）。
+
+压缩模式下四类东西各有各的压缩器，都只在 `--mode minify` 下生效：
+
+- **JS / CSS** 用 Vite 自己的默认项（`minify: 'oxc'`、`cssMinify: 'lightningcss'`）。同一份代码上 oxc 比 terser 更小，构建也更快，所以不换。
+- **HTML** 交给 `html-minifier-terser`（`collapseWhitespace` + `removeComments`）。它不碰内联的 `script` / `style`——模块脚本是已经压过的 JS。
+- **主题 CSS** 交给 `purgecss` 裁掉页面不消费的变量与关键帧。判据只认产物自己：CSS 内的 `var()` 引用，加上 JS 与 HTML 里出现过的变量名（JS 用 `getComputedStyle` 按名字读变量，那些名字不在 CSS 里）。选择器一并按内容裁。裁完内容变了，CSS 资产重发一份，文件名里的 hash 跟着内容走。
+- **GLSL** 不写 `?raw`：`*.frag` / `*.vert` 由 `shaderSource` 插件转给 Vite 自己的 raw 加载器，类型由 `types/shader.d.ts` 声明，导入处只剩文件名。压缩由 `minifyRawShaders` 在模块被压缩之前完成：GLSL 在 bundle 里只是一段字符串，JS 压缩器不碰字符串内容。按 C 族词法走 `glsl-tokenizer`，去注释与空白，其余记号原字面照抄；源码里本来就挨着的记号（`<<`、`+=` 这类会被切成两个）之间不插字符，隔着空白或注释的只在两个字面会粘成一个新记号时补一个空格，`#version` 独占一行。字面量一字不改，所以产物与源逐字等价。glsl-tokenizer 不带类型声明，上游也没有 @types 包，`types/glsl-tokenizer.d.ts` 只声明本项目用到的那一个入口。
+- **产物里的换行**由 `escapeNewlines` 写成转义：JS 压缩器会把含换行的字符串写成模板字面量，换行也就真落进产物，文件里就多出真实换行。只动不含 `$`、反引号与反斜杠的模板字面量——这类字面量的原文就是字面内容，换成 JSON 字符串逐字等价；带替换的、带转义的都不碰。它排在 `inlineStandalone` 前面，单文件模式也一样。
 
 自包含版把 JS 与 CSS 内联进 `index.html`，外部引用为 0，可以直接从 `file://` 打开。内联走 Vite 自己的 `generateBundle`，不读磁盘、不引插件，也不欠 `@types/node`。
 

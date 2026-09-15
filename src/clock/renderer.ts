@@ -10,8 +10,8 @@
 
 import type { RGBA } from '../color';
 import type { GlPalette } from '../themes/controller';
-import VERTEX_SHADER from './fullscreen.vert?raw';
-import FRAGMENT_SHADER from './dial.frag?raw';
+import VERTEX_SHADER from './fullscreen.vert';
+import FRAGMENT_SHADER from './dial.frag';
 import { DIAL } from "./DIAL";
 
 /** 一帧要写进去的全部 uniform。 */
