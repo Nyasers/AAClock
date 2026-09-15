@@ -66,13 +66,13 @@ body {
   padding: 20px 26px 14px;
   /* 浮层别在表盘上方吃掉指针事件。 */
   pointer-events: none;
+  z-index: 9999;
 }
 
 .brand {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  min-width: 0;
 }
 
 .brand h1 {
@@ -116,7 +116,6 @@ body {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 0;
   padding: 0 26px;
 }
 
@@ -238,6 +237,7 @@ body {
   max-width: 100%;
   margin: 0 auto;
   padding: 0 26px 20px;
+  z-index: 9999;
 }
 
 /* 提示与收起按钮同行；左侧用等宽占位（按钮宽 + 内缩量）保证提示仍在整体居中。 */
@@ -322,7 +322,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  min-width: 0;
 }
 
 .group.is-muted {
@@ -367,6 +366,7 @@ body {
   transition:
     background 0.15s ease,
     color 0.15s ease;
+  z-index: 9999;
 }
 
 .seg button {
@@ -444,7 +444,6 @@ input[type='range']:disabled::-webkit-slider-thumb {
 select {
   appearance: none;
   -webkit-appearance: none;
-  min-width: 132px;
   padding: 6px 26px 6px 9px;
   font-family: inherit;
   font-size: 12px;

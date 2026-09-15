@@ -19,7 +19,7 @@ import {
   wrapPi,
 } from './clock/time-model';
 import { Loupe } from './clock/loupe';
-import { DIAL } from './clock/shader';
+import { DIAL } from './clock/DIAL';
 import { ThemeController } from './themes/controller';
 import './styles.css';
 
@@ -641,8 +641,8 @@ class App {
         case 'F':
           this.setField(!this.field);
           break;
-        case 'l':
-        case 'L':
+        case 'v':
+        case 'V':
           this.setLoupe(!this.loupeOn);
           break;
         case 'r':
