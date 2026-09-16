@@ -237,9 +237,8 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       emptyOutDir: true,
       // 默认不压缩：产物是拿来读的；需要压缩走 --mode minify。
-      // JS 与 CSS 都交给 Vite 自己的压缩器，CSS 裁剪与 HTML 另有两个插件。
-      // 默认不压缩：产物是拿来读的；需要压缩走 --mode minify。
-      // JS 压缩器用 oxc（Vite 默认）：同一份代码上它比 terser 小，构建还快。
+      // JS 压缩器用 oxc（Vite 默认）：同一份代码上它比 terser 小，构建还快；
+      // CSS 裁剪与 HTML 压缩各有一个插件，见下方 plugins。
       minify: minify && 'oxc',
       cssMinify: minify,
       // 内联之后没有可预加载的独立资源。

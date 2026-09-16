@@ -139,9 +139,6 @@ float sdSecond(vec2 p, vec2 dir) {
   return min(cone, ring);
 }
 
-// 点到秒针轴线线段的距离。用线段而不是无限直线：直线会让晕影顺着针的方向
-// 铺满整个画布，越出表盘。
-
 // 轴心 = 环 ∪ 盘 ∪ 点。
 float sdAxis(vec2 p) {
   float ring = abs(sdCircle(p, 0.052)) - 0.0035;
@@ -196,22 +193,23 @@ vec3 shade(vec2 p, int m) {
   col = over(col, mix(uCard, uMuted, 0.6), cMinute);
   col = over(col, uInkSoft, cHour);
 
-  // 6) 时针。
+  // 5) 时针。
   col = layer(col, sdRoundCone(p, vec2(0.0), hd * L_HOUR, 0.0285, 0.0105), uInkSoft, m);
 
-  // 7) 分针。
+  // 6) 分针。
   col = layer(col, sdRoundCone(p, vec2(0.0), md * L_MIN, 0.0225, 0.0085), uInk, m);
 
-  // 8) 秒针晕影：到针身线段（含尾程）的距离，本身是光滑 alpha，直接当覆盖率用，画在秒针之下。
+  // 7) 秒针晕影：到针身线段（含尾程）的距离。用线段而不是无限直线，否则晕影会顺着
+  //    针的方向铺满整个画布、越出表盘。它本身是光滑 alpha，直接当覆盖率用，画在秒针之下。
   float tAxis = clamp(dot(p, sd), -T_SEC, L_SEC);
   float dAxis = length(p - sd * tAxis);
   float glow = exp(-dAxis * dAxis * 300.0) * 0.16 * uGlow;
   col = over(col, uAccent, glow);
 
-  // 9) 秒针。
+  // 8) 秒针。
   col = layer(col, sdSecond(p, sd), uAccent, m);
 
-  // 10) 轴心：环 → 盘 → 点。
+  // 9) 轴心：环 → 盘 → 点。
   col = layer(col, abs(sdCircle(p, 0.052)) - 0.0035, uCard, m);
   col = layer(col, sdCircle(p, 0.037), uInk, m);
   col = layer(col, sdCircle(p, 0.0125), uAccent, m);
