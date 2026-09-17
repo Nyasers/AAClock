@@ -4,9 +4,10 @@
 /*
  * controller.ts —— 主题控制器（README §5）。
  *
- * 主题定义不是本项目的数据：src/themes/ 是 Hana 主题 CSS 的逐字副本。本模块只做
- * 三件事——解析用哪一份、把它挂到 documentElement 上、把计算样式里的变量读成
- * 一份 GL palette 交给 renderer。读取只发生在应用主题的那一刻，不每帧读。
+ * 主题定义不是本项目的数据：主题 CSS 与显示名都来自 submodule 里的上游仓库
+ * （vendor/openhanako，见 README §5 / §12）。本模块只做三件事——解析用哪一份、
+ * 把它挂到 documentElement 上、把计算样式里的变量读成一份 GL palette 交给 renderer。
+ * 读取只发生在应用主题的那一刻，不每帧读。
  *
  * 本页是独立网页：不监听 postMessage、不校验 window.parent、不加载宿主 theme.css。
  * 跨源 iframe 里的明暗跟随由 Chromium 的 prefers-color-scheme 继承天然达成。
@@ -15,6 +16,7 @@
 import type { RGBA } from '../color';
 import { flatten, parseColor, relativeLuminance } from '../color';
 import { THEME_IDS } from './index';
+import { THEME_LABELS } from 'virtual:aaclock-upstream-labels';
 
 /** renderer 需要的全部颜色（README §5.3 / §3.7）。 */
 export interface GlPalette {
@@ -43,21 +45,6 @@ const STORAGE_KEY = 'aaclock:theme';
 const DARK_THEME = 'midnight';
 const LIGHT_THEME = 'warm-paper';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
-
-/** 主题显示名：与宿主 locales 的中文名一致；缺省回落到 id。 */
-const THEME_LABELS: Readonly<Record<string, string>> = {
-  'warm-paper': '暖纸',
-  midnight: '青夜',
-  'high-contrast': '素白',
-  'grass-aroma': '草香',
-  contemplation: '沉思',
-  absolutely: 'Absolutely',
-  delve: '随时准备接住你',
-  'deep-think': '用户彻底怒了',
-  'new-warm-paper': '新暖纸',
-  'midnight-contrast': '青夜·高对比',
-  coral: '珊瑚',
-};
 
 const TRANSPARENT: RGBA = { r: 0, g: 0, b: 0, a: 0 };
 

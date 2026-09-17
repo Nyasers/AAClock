@@ -7,6 +7,7 @@
 ## 用法
 
 ```
+git submodule update --init --depth 1   主题 CSS 与显示名取自 submodule（§5.1）
 pnpm install
 pnpm dev                       开发（热更新）
 pnpm build                     dist/：多文件，不压缩
@@ -43,7 +44,7 @@ pnpm build:standalone:minify   dist/index.html：单文件，压缩
 
 **混合空间可选 sRGB 直混或线性光。** 反走样不只是"采样几次"，还取决于在哪个空间里平均：在 sRGB 编码值上平均，边缘会偏暗。把它做成开关，差异当场可见。
 
-**主题是宿主的数据，不是本项目的数据。** `src/themes/` 是 Hana 渲染器主题 CSS 的逐字副本，页面只消费 `--bg` / `--accent` 这类变量，不自造颜色。曾经为了"色值跟宿主一致"抄过一张 TS 色表，那是二手翻译：既要保持同步，又容易抄错。**并且不接宿主协议**——`postMessage` 握手是插件 UI 的礼节，独立页永远收不到广播，写了就是死代码；明暗跟随交给 `prefers-color-scheme` 的继承。
+**主题是宿主的数据，不是本项目的数据。** 主题 CSS 与主题显示名都从上游仓库现取（submodule，见 §5.1），页面只消费 `--bg` / `--accent` 这类变量，不自造颜色。曾经为了"色值跟宿主一致"抄过一张 TS 色表，那是二手翻译：既要保持同步，又容易抄错。**并且不接宿主协议**——`postMessage` 握手是插件 UI 的礼节，独立页永远收不到广播，写了就是死代码；明暗跟随交给 `prefers-color-scheme` 的继承。
 
 **表盘严格居中，放大镜挂到盘外。** 放大镜比表盘更挡视线，而它只是工具。放不进右侧时才收回盘内叠放。顶部同样做成浮层：表盘四周留有一圈投影余地，顶栏压在那圈余地上不盖盘面，却把一整行高度还给了表盘。
 
@@ -201,17 +202,15 @@ vec3  uBg, uCard, uEdge, uInk, uInkSoft, uMuted, uAccent, uCoral, uShadow
 
 ## 5. 主题
 
-### 5.1 逐字副本
+### 5.1 上游引用
 
-`src/themes/` 放 Hana 主题 CSS 的**逐字副本**。这几份 CSS 出自 HanaAgent（[liliMozi/openhanako](https://github.com/liliMozi/openhanako)）的主题资源，逐字复制、未作改动；本项目只消费它们定义的 CSS 变量。复制来源：
+主题定义不是本项目的数据，因此不入库：上游仓库以 submodule 挂在 `vendor/openhanako`，pin 在 `v0.450.0`（`1d3ef308`），浅克隆。
 
-```
-E:/Hanako/.hanako/artifacts/renderer/<version>/themes/
-```
+- **主题 CSS** 在 `vendor/openhanako/desktop/src/themes/`，原文一字不改。`themes/index.ts` 逐个文件显式 import 清单里的 11 个配色主题，不 glob 整个目录——上游那份目录里还有本页不消费的 `new-warm-paper-fonts.css` 与字体文件。
+- **主题显示名**在 `vendor/openhanako/desktop/src/locales/zh.json` 的 `settings.appearance`。构建期由 `upstreamThemeLabels` 插件摘出清单里的那 11 条（§7.2），整个 locale 文件不进产物。
+- **清单**（主题 id 即 `[data-theme]` 取值与上游文件名，以及它对应的 locale key）写在 `themes/catalog.ts`。上游改了文件名或 key，构建直接报错，不静默回落到 id。
 
-拷入除 `new-warm-paper-fonts.css`（那是字体，不是配色）外的全部文件：`continuous-corners.css`、`grass-aroma.css`、`midnight.css`、`midnight-contrast.css`、`warm-paper.css`、`new-warm-paper.css`、`absolutely.css`、`contemplation.css`、`coral.css`、`deep-think.css`、`delve.css`、`high-contrast.css`。**源文件内容不得改动**；宿主改了色，重拷一次即同步。压缩模式下会把这个副本里页面不消费的变量与关键帧裁掉（§7.2），裁的是产物，不是副本。
-
-`themes/index.ts` 以副作用装入全部主题 CSS，并从文件名导出主题 id 列表——id 不写死在 TS 里，拷进来一个文件就多一个选项。
+压缩模式下会裁掉产物里页面不消费的主题变量与关键帧（§7.2）。
 
 ### 5.2 控制器
 
@@ -220,12 +219,12 @@ E:/Hanako/.hanako/artifacts/renderer/<version>/themes/
 1. **解析主题 id**，优先级从高到低：URL `?theme=<id>`（只在初次解析时认一次）> `localStorage['aaclock:theme']` > 系统明暗（`matchMedia('(prefers-color-scheme: dark)')` 命中取 `midnight`，否则 `warm-paper`，与宿主的默认搭配一致）。存储值 `auto` 表示跟随系统。无法识别的 id 忽略，继续往下回退。
 2. **应用**：`documentElement.dataset.theme = id`（CSS 自动生效）+ `documentElement.style.colorScheme = dark ? 'dark' : 'light'`（原生控件配色）。暗色判定由底色亮度反推，省掉一张"哪些主题是暗色"的表。
 3. **读取**：`getComputedStyle(documentElement)` 取变量，转成 GL palette 交给 `renderer`。只在此处、只在应用主题时读一次，不每帧读。
-4. `themeSelect` 首项为"自动"，其余列出 `themes/` 里的主题，显示名取宿主 locales 的中文名；切换即写回 `localStorage`。
+4. `themeSelect` 首项为"自动"，其余列出清单里的主题（`themes/catalog.ts`），显示名取上游 locale 的中文名（构建期摘取，§5.1）；切换即写回 `localStorage`。
 5. 处于 `auto` 时监听 `matchMedia` 的 change 事件重新解析（保存 MediaQueryList 引用，不在回调里新建）。
 
-页面消费的变量：`--bg --bg-card --bg-glass --accent --accent-hover --accent-light --text --text-light --text-muted --border --shadow --overlay-subtle --overlay-light --overlay-medium --overlay-strong --green --coral --danger --corner-radius-scale`。
+页面消费的变量：`--bg --bg-card --bg-glass --accent --accent-hover --accent-light --text --text-light --text-muted --border --shadow --overlay-subtle --overlay-light --overlay-medium --overlay-strong --green --coral --danger`。
 
-**不自造颜色变量**：不要 `--glass` / `--accent-ink` / `--shadow-strong`，分别改用 `--bg-glass` / `--accent-light`（选中态用 Hana 的"浅底深字"式：`--accent-light` 底 + `--accent` 字）/ `--shadow`。圆角写成 `calc(<r> * var(--corner-radius-scale, 1))`——这个比例由 `continuous-corners.css` 在支持 `corner-shape: squircle` 时放大，改半径时相关内缩量会自动跟上。
+**不自造颜色变量**：不要 `--glass` / `--accent-ink` / `--shadow-strong`，分别改用 `--bg-glass` / `--accent-light`（选中态用 Hana 的"浅底深字"式：`--accent-light` 底 + `--accent` 字）/ `--shadow`。圆角写成 `calc(<r> * var(--corner-radius-scale))`——这个比例在 `styles.css` 里定义，支持 `corner-shape: squircle` 时放大，改半径时相关内缩量会自动跟上。
 
 ### 5.3 CSS 变量 → GL palette
 
@@ -269,6 +268,7 @@ E:/Hanako/.hanako/artifacts/renderer/<version>/themes/
 - **JS / CSS** 用 Vite 自己的默认项（`minify: 'oxc'`、`cssMinify: 'lightningcss'`）。同一份代码上 oxc 比 terser 更小，构建也更快，所以不换。
 - **HTML** 交给 `html-minifier-terser`（`collapseWhitespace` + `removeComments`）。它不碰内联的 `script` / `style`——模块脚本是已经压过的 JS。
 - **主题 CSS** 交给 `purgecss` 裁掉页面不消费的变量与关键帧。判据只认产物自己：CSS 内的 `var()` 引用，加上 JS 与 HTML 里出现过的变量名（JS 用 `getComputedStyle` 按名字读变量，那些名字不在 CSS 里）。选择器一并按内容裁。裁完内容变了，CSS 资产重发一份，文件名里的 hash 跟着内容走。
+- **主题显示名**由 `upstreamThemeLabels` 在构建期从上游 locale 里摘出清单里的那几条（§5.1），以虚拟模块 `virtual:aaclock-upstream-labels` 交给 `controller.ts`。上游缺条目或缺 key 时构建失败，显示名不静默回落到 id。
 - **GLSL** 不写 `?raw`：`*.frag` / `*.vert` 由 `shaderSource` 插件转给 Vite 自己的 raw 加载器，类型由 `types/shader.d.ts` 声明，导入处只剩文件名。压缩由 `minifyRawShaders` 在模块被压缩之前完成：GLSL 在 bundle 里只是一段字符串，JS 压缩器不碰字符串内容。按 C 族词法走 `glsl-tokenizer`，去注释与空白，其余记号原字面照抄；源码里本来就挨着的记号（`<<`、`+=` 这类会被切成两个）之间不插字符，隔着空白或注释的只在两个字面会粘成一个新记号时补一个空格，`#version` 独占一行。字面量一字不改，所以产物与源逐字等价。glsl-tokenizer 不带类型声明，上游也没有 @types 包，`types/glsl-tokenizer.d.ts` 只声明本项目用到的那一个入口。
 - **产物里的换行**由 `escapeNewlines` 写成转义：JS 压缩器会把含换行的字符串写成模板字面量，换行也就真落进产物，文件里就多出真实换行。只动不含 `$`、反引号与反斜杠的模板字面量——这类字面量的原文就是字面内容，换成 JSON 字符串逐字等价；带替换的、带转义的都不碰。它排在 `inlineStandalone` 前面，单文件模式也一样。
 
@@ -307,7 +307,7 @@ src/
   main.ts              装配：rAF 主循环、尺寸/DPR、读数、事件绑定
   styles.css           页面外观，只消费主题 CSS 提供的变量
   color.ts             颜色解析与混合（计算样式里的色值 → RGBA / 0-1 浮点）
-  themes/              Hana 主题 CSS 逐字副本、主题 id barrel、主题控制器
+  themes/              上游主题清单、主题 CSS 入口、主题控制器
   clock/
     dial.frag          GLSL：SDF 图元、覆盖函数、钟面图层
     fullscreen.vert    GLSL：全屏三角形
@@ -346,7 +346,7 @@ src/
 
 ## 12. 来源与致谢
 
-主题 CSS 取自 [liliMozi/openhanako](https://github.com/liliMozi/openhanako)（HanaAgent）的渲染器主题资源，逐字复制、未作改动，版权与许可归属上游项目。本项目不依赖它的代码，只在配色与命名上跟随它。
+主题 CSS 与主题显示名取自 [liliMozi/openhanako](https://github.com/liliMozi/openhanako)（HanaAgent）的主题资源，以 submodule 引用（pin 在 `v0.450.0`），版权与许可归属上游项目：本项目不复制、不改动它们的内容，只在配色与命名上跟随它。
 
 ## 13. 许可
 
