@@ -1,6 +1,7 @@
 /*
  * AAClock 外观：颜色一律消费 Hana 主题 token（--bg / --bg-card / --text / --accent /
- * --border / --bg-glass / --shadow / --overlay-* …），它们定义在 src/themes/ 的逐字副本里。
+ * --border / --bg-glass / --shadow / --overlay-* …），它们定义在上游主题 CSS 里，
+ * 由 src/themes/index.ts 从 submodule 装入（README §5.1）。
  * 这里只放与主题无关的自有 token：字体、圆角、几何比例。
  */
 
@@ -14,10 +15,20 @@ html {
     sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
 
-  /* 圆角乘上主题给出的几何比例（continuous-corners.css 的 --corner-radius-scale）。 */
-  --radius-lg: calc(16px * var(--corner-radius-scale, 1));
-  --radius-md: calc(9px * var(--corner-radius-scale, 1));
-  --radius-sm: calc(6px * var(--corner-radius-scale, 1));
+  /* 圆角：半径一律乘这个比例，宿主用 squircle，本页跟着用。
+     与圆角绑定的内缩量（.hint-row 的 padding-right 与 ::before 的占位宽度）也要跟着它走。 */
+  --corner-radius-scale: 1;
+  --radius-lg: calc(16px * var(--corner-radius-scale));
+  --radius-md: calc(9px * var(--corner-radius-scale));
+  --radius-sm: calc(6px * var(--corner-radius-scale));
+}
+
+/* squircle 的角点比圆弧更贴角，半径要放大到与圆弧等切深：圆形角点离角 0.4142r，
+   n=4 超椭圆离角 0.2250r，两者之比 1 + 2^(-1/4) = 1.8408964152537137。 */
+@supports (corner-shape: squircle) {
+  :root {
+    --corner-radius-scale: 1.8408964152537137;
+  }
 }
 
 * {

@@ -375,9 +375,9 @@ CSS 坐标 → 设备像素：  ox = floor(x / cssSize · glSize)      // 表盘
 
 ### 8.1 边界
 
-`themes/*.css` 是宿主 Hana 主题资源的逐字副本，本项目不修改、只消费。`index.ts` 用 `import.meta.glob` 从文件名生成 `THEME_IDS`：拷进来一个文件就多一个选项，id 不写死在 TS 里；`continuous-corners` 是几何支援不是配色，从选择器里排除。
+`themes/*.css` 里的配色主题取自 submodule 中的上游仓库（`vendor/openhanako/desktop/src/themes/`，README §5.1），本项目不改它们的内容、只消费；`themes/index.ts` 逐个文件显式 import `catalog.ts` 列出的 11 个主题，不 glob 整个目录。`continuous-corners.css` 不在上游公开仓库里，是本项目自己的几何支援，不是配色主题。
 
-页面自己只定义与主题无关的 token：两族字体、三个圆角半径。圆角一律写成 `calc(<r> * var(--corner-radius-scale, 1))`。这个比例由 `continuous-corners.css` 在 `@supports (corner-shape: squircle)` 下从 1 改成 1.8408964152537137（数值上等于 `1 + 2^(-1/4)`，宿主给的值）。**任何与圆角绑定的内缩量都必须跟着同一个变量走**，否则在支持 squircle 的浏览器上会错位：`.hint-row` 的 `padding-right` 与 `::before` 的占位宽度都是这么写的。
+页面自己只定义与主题无关的 token：两族字体、三个圆角半径。圆角一律写成 `calc(<r> * var(--corner-radius-scale))`，比例定义在 `styles.css` 的 `:root`，浏览器支持 `corner-shape: squircle` 时从 1 改成 1.8408964152537137（等于 `1 + 2^(-1/4)`：圆形角点离角 0.4142r，n=4 超椭圆离角 0.2250r，两者之比）。**任何与圆角绑定的内缩量都必须跟着同一个变量走**，否则在支持 squircle 的浏览器上会错位：`.hint-row` 的 `padding-right` 与 `::before` 的占位宽度都是这么写的。
 
 ### 8.2 解析优先级
 

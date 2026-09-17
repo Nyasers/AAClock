@@ -1,0 +1,3 @@
+[submodule "vendor/openhanako"]
+	path = vendor/openhanako
+	url = https://github.com/liliMozi/openhanako.git
